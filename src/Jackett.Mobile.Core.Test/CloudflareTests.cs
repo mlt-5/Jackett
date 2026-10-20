@@ -156,6 +156,19 @@ namespace Jackett.Mobile.Core.Test
         }
 
         [Test]
+        public async Task RetryDoesNotResendStaleCookieHeader()
+        {
+            var request = new HttpRequestMessage(HttpMethod.Get, "https://tracker.example/");
+            request.Headers.TryAddWithoutValidation("Cookie", "cf_clearance=expired");
+            request.Headers.TryAddWithoutValidation("Referer", "https://tracker.example/");
+
+            var clone = await BrowserChallengeHandler.CloneAsync(request);
+
+            Assert.That(clone.Headers.Contains("Cookie"), Is.False);
+            Assert.That(clone.Headers.Referrer, Is.EqualTo(new Uri("https://tracker.example/")));
+        }
+
+        [Test]
         public void SplitsMergedSetCookieHeaders()
         {
             const string merged = "a=1; expires=Wed, 21 Oct 2026 07:28:00 GMT; path=/, b=2; HttpOnly,c=3";

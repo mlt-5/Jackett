@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="456" height="456" viewBox="0 0 456 456">
+  <!-- a jacket: collar, body and zip -->
+  <path d="M168 120 L228 150 L288 120 L352 150 L384 250 L344 262 L336 336 L120 336 L112 262 L72 250 L104 150 Z" fill="#F59E0B"/>
+  <path d="M168 120 L228 196 L288 120" fill="none" stroke="#1E293B" stroke-width="14" stroke-linejoin="round"/>
+  <line x1="228" y1="196" x2="228" y2="336" stroke="#1E293B" stroke-width="10"/>
+</svg>

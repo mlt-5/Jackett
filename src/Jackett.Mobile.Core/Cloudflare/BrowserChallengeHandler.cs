@@ -83,7 +83,8 @@ namespace Jackett.Mobile.Core.Cloudflare
                 Version = request.Version
             };
 
-            foreach (var header in request.Headers)
+            // the Cookie header is rebuilt from the CookieContainer, copying it would resend stale cookies
+            foreach (var header in request.Headers.Where(h => !h.Key.Equals("Cookie", StringComparison.OrdinalIgnoreCase)))
                 clone.Headers.TryAddWithoutValidation(header.Key, header.Value);
 
             if (request.Content != null)

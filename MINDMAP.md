@@ -29,6 +29,9 @@ mindmap
       Jackett.Updater – self updater
       Jackett.Test – unit tests
       Jackett.IntegrationTests – integration tests
+      Jackett.Mobile – iOS app (MAUI)
+      Jackett.Mobile.Core – runs Common without the web server
+      Jackett.Mobile.Core.Test – tests of the mobile core
     docs/ – generated YAML schema docs
     .github/ – issue templates, workflows, screenshots
     Root install scripts
@@ -57,7 +60,11 @@ Jackett/
 │   ├── Jackett.Service/            Windows-only service wrapper
 │   ├── Jackett.Updater/            Self-update helper
 │   ├── Jackett.Test/               Unit tests (NUnit)
-│   └── Jackett.IntegrationTests/   Integration tests
+│   ├── Jackett.IntegrationTests/   Integration tests
+│   ├── Jackett.Mobile.sln          Solution for the iOS app
+│   ├── Jackett.Mobile/             iOS app (MAUI): search, indexer setup, in-app browser for Cloudflare
+│   ├── Jackett.Mobile.Core/        Runs Jackett.Common without ASP.NET (used by the app)
+│   └── Jackett.Mobile.Core.Test/   Tests of the mobile core
 ├── docs/                           ~250 auto-generated schema docs (from schema.json)
 ├── .github/                        Issue/PR templates, dependabot, workflows
 │   └── workflows/                  codeql, definitions-update, issuebot, schema-docs, winget
@@ -80,6 +87,9 @@ graph TD
   C --> U[Jackett.Updater]
   C --> TE[Jackett.Test]
   S --> TE
+  C --> MC[Jackett.Mobile.Core]
+  MC --> M[Jackett.Mobile iOS app]
+  MC --> MT[Jackett.Mobile.Core.Test]
 ```
 
 ## Request flow
