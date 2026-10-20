@@ -81,11 +81,15 @@ namespace Jackett.Common.Utils.Clients
                 ServerCertificateCustomValidationCallback = ValidateCertificate,
             };
 
-            clearanceHandlr.InnerHandler = clientHandlr;
+            clearanceHandlr.InnerHandler = CreateInnerHandler(clientHandlr, cookies);
             client = new HttpClient(clearanceHandlr);
 
             SetTimeout(ClientTimeout);
         }
+
+        // Lets platform specific clients (e.g. the iOS app) wrap or replace the handler that sends the requests.
+        // Called from the constructor, so overrides must not depend on their own instance fields.
+        protected virtual HttpMessageHandler CreateInnerHandler(HttpClientHandler handler, CookieContainer cookieContainer) => handler;
 
         // Called everytime the ServerConfig changes
         public override void OnNext(ServerConfig value)

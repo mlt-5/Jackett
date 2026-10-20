@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Platform independent part of the iOS app: hosts Jackett.Common without the web server.
+       Kept separate from Jackett.Mobile so it can be built and tested on any OS. -->
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <Nullable>disable</Nullable>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Jackett.Common\Jackett.Common.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Jackett.Mobile.Core.Test" />
+  </ItemGroup>
+
+</Project>
