@@ -77,9 +77,7 @@ namespace Jackett.Mobile.Core
             var challenges = new BrowserChallengeCoordinator(store, () => options.BrowserSolver, () => settings.SolveChallengesInBrowser);
 
             // must be set before the first web client is created
-            MobileNetworking.Challenges = challenges;
-            MobileNetworking.NativeTransportFactory = options.NativeTransportFactory;
-            MobileNetworking.UseNativeTransport = settings.UseNativeNetworking;
+            MobileNetworking.Configure(challenges, options.NativeTransportFactory, settings.UseNativeNetworking);
 
             var configService = new MobileConfigurationService(
                 new ConfigurationService(new SerializeService(), new ProcessService(logger), logger, runtimeSettings), options);

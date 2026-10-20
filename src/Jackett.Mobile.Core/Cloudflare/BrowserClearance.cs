@@ -25,6 +25,10 @@ namespace Jackett.Mobile.Core.Cloudflare
             return host.Equals(domain, StringComparison.OrdinalIgnoreCase)
                 || host.EndsWith("." + domain, StringComparison.OrdinalIgnoreCase);
         }
+
+        public bool IsSubdomainOf(string host) =>
+            !string.IsNullOrEmpty(Domain) && !string.IsNullOrEmpty(host)
+            && Domain.TrimStart('.').EndsWith("." + host, StringComparison.OrdinalIgnoreCase);
     }
 
     // Everything the in-app browser hands back after passing a challenge or a login:
@@ -44,8 +48,16 @@ namespace Jackett.Mobile.Core.Cloudflare
         public IEnumerable<BrowserCookie> ValidCookiesFor(string host, DateTime nowUtc) =>
             Cookies.Where(c => !c.IsExpired(nowUtc) && c.MatchesHost(host));
 
-        // "name=value; name2=value2", the format used by the "cookie" setting of the indexers
+        // Cookies of the site and of its subdomains: a site at example.com often logs in on www.example.com.
+        public IEnumerable<BrowserCookie> ValidCookiesForSite(string host, DateTime nowUtc) =>
+            Cookies.Where(c => !c.IsExpired(nowUtc) && (c.MatchesHost(host) || c.IsSubdomainOf(host)));
+
+        // "name=value; name2=value2", the format used by the "cookie" setting of the indexers.
+        // When a name is set on several domains, the most specific domain wins.
         public string ToCookieHeader(string host, DateTime nowUtc) =>
-            string.Join("; ", ValidCookiesFor(host, nowUtc).Select(c => c.Name + "=" + c.Value));
+            string.Join("; ", ValidCookiesForSite(host, nowUtc)
+                              .GroupBy(c => c.Name)
+                              .Select(g => g.OrderByDescending(c => (c.Domain ?? "").TrimStart('.').Length).First())
+                              .Select(c => c.Name + "=" + c.Value));
     }
 }

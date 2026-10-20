@@ -1,4 +1,3 @@
-using System.Collections.ObjectModel;
 using Jackett.Mobile.Core.Models;
 using Jackett.Mobile.Core.Services;
 
@@ -34,7 +33,7 @@ public class SearchPage : ContentPage
     private readonly Label _status = new Label { FontSize = 13, TextColor = Colors.Gray };
     private readonly Button _failures = new Button { IsVisible = false, FontSize = 13, Padding = new Thickness(8, 0), HeightRequest = 32 };
     private readonly ActivityIndicator _spinner = new ActivityIndicator { IsRunning = false, IsVisible = false, HeightRequest = 20 };
-    private readonly ObservableCollection<ResultItem> _items = new ObservableCollection<ResultItem>();
+    private readonly CollectionView _list;
 
     private List<SearchResult> _results = new List<SearchResult>();
     private List<IndexerSearchStatus> _failed = new List<IndexerSearchStatus>();
@@ -56,9 +55,8 @@ public class SearchPage : ContentPage
         _searchBar.SearchButtonPressed += async (_, _) => await SearchAsync();
         _failures.Clicked += async (_, _) => await ShowFailuresAsync();
 
-        var list = new CollectionView
+        var list = _list = new CollectionView
         {
-            ItemsSource = _items,
             SelectionMode = SelectionMode.Single,
             ItemTemplate = new DataTemplate(CreateResultCell),
             EmptyView = new Label
@@ -130,7 +128,7 @@ public class SearchPage : ContentPage
         var token = _searchCancellation.Token;
 
         _searchBar.Unfocus();
-        _items.Clear();
+        _list.ItemsSource = null;
         _failures.IsVisible = false;
         _spinner.IsVisible = _spinner.IsRunning = true;
         var done = 0;
@@ -182,9 +180,8 @@ public class SearchPage : ContentPage
     private void ShowResults()
     {
         var sort = SortChoices[Math.Max(_sort.SelectedIndex, 0)].Sort;
-        _items.Clear();
-        foreach (var result in SearchService.Sort(_results, sort))
-            _items.Add(new ResultItem(result));
+        // one list assignment instead of thousands of collection change notifications
+        _list.ItemsSource = SearchService.Sort(_results, sort).Select(r => new ResultItem(r)).ToList();
     }
 
     private Task ShowFailuresAsync()

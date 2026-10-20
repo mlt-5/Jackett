@@ -55,7 +55,22 @@ namespace Jackett.Mobile.Core.Cloudflare
             var retry = await CloneAsync(request);
             ApplyClearance(retry, clearance);
             response.Dispose();
-            return await base.SendAsync(retry, cancellationToken);
+            var retryResponse = await base.SendAsync(retry, cancellationToken);
+
+            // The site refused the browser's cookies (e.g. it fingerprints the connection, not only the cookie).
+            // Stop here, or every following request would open the browser again.
+            if (ChallengeDetector.MightBeChallenge(retryResponse))
+            {
+                await retryResponse.Content.LoadIntoBufferAsync();
+                if (ChallengeDetector.IsChallenge(retryResponse, await retryResponse.Content.ReadAsStringAsync()))
+                {
+                    _coordinator.MarkRejected(request.RequestUri.Host);
+                    _logger?.Warn($"{request.RequestUri.Host} still answers with a challenge after it was solved in the browser. " +
+                                  "Try switching \"Use iOS networking\" in the settings, or set up FlareSolverr.");
+                }
+            }
+
+            return retryResponse;
         }
 
         private void ApplyClearance(HttpRequestMessage request, BrowserClearance clearance)

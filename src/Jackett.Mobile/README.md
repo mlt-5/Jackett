@@ -15,7 +15,8 @@ definitions and C# indexers are included.
 * **"Checking your browser" pages** (Cloudflare, DDoS-Guard): when a tracker answers with one, the
   app opens the page in a browser sheet. It usually passes by itself; sometimes you tap the checkbox.
   The cookies and the browser User-Agent are saved (`browser-cookies.json`) and reused, so you are
-  asked again only when they expire. If you cancel, that site is not asked again until the app restarts.
+  asked again only when they expire. If you cancel, or if the site still refuses the browser's cookies, that site is not asked again until
+  the app restarts (or the setting is switched off and on).
 * **Logins with captchas**: indexers that log in with a cookie get a **Log in with the in-app browser**
   button. Log in on the real site, tap **Done**, and the cookie (and User-Agent) fields are filled for you.
 * **iOS networking** (on by default): requests go through `NSUrlSession`, the same network stack as
@@ -45,16 +46,25 @@ check will still fail.
    cd src/Jackett.Mobile
    dotnet build -t:Run -f net10.0-ios
    ```
-4. To run on an iPhone, change `ApplicationId` in `Jackett.Mobile.csproj` to an identifier of your own,
-   open `src/Jackett.Mobile.sln` in Visual Studio Code (C# Dev Kit + .NET MAUI extensions) or Rider,
-   select your device and your Apple ID team for signing, and run. A free Apple ID works; the app then
-   has to be reinstalled every 7 days.
+4. To run on an iPhone:
+   1. Change `ApplicationId` in `Jackett.Mobile.csproj` to an identifier of your own, e.g. `com.yourname.jackett`.
+   2. Create a signing profile for it: in Xcode, make a new empty iOS app with exactly that bundle identifier,
+      choose your Apple ID under *Signing & Capabilities → Team*, and run it once on the iPhone (plugged in, with
+      Developer Mode on). Xcode then creates the certificate and provisioning profile that .NET reuses.
+   3. With the iPhone still connected, build and install:
+      ```sh
+      dotnet build -t:Run -f net10.0-ios -c Release -p:RuntimeIdentifier=ios-arm64
+      ```
+      If several certificates or profiles exist, name them with `-p:CodesignKey="Apple Development: ..."` and
+      `-p:CodesignProvision="..."`.
+
+   With a free Apple ID the app stops opening after 7 days and has to be installed again.
 
 ## Adding or updating tracker definitions
 
 The definitions in `src/Jackett.Common/Definitions` are built into the app. To add or update one
 without rebuilding, copy the `.yml` file to **Files → On My iPhone → Jackett → Definitions** and restart
-the app. Files there replace the built-in ones with the same name.
+the app. A file there replaces the built-in definition with the same `id`.
 
 ## Project layout
 
@@ -65,4 +75,5 @@ the app. Files there replace the built-in ones with the same name.
 | `Jackett.Mobile.Core.Test` | Tests for the core, including starting the full host with every definition. Run with `dotnet test src/Jackett.Mobile.Core.Test`. |
 
 The app data (indexer settings, logs, cookies) is stored in the app's `Library` folder. The key
-that encrypts saved passwords is stored in the iOS Keychain.
+that encrypts saved passwords is stored in the iOS Keychain (or, if the Keychain is not available, in a
+file next to the data). As in the server, login cookies are saved unencrypted in the indexer settings.

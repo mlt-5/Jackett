@@ -1,4 +1,3 @@
-using System.Collections.ObjectModel;
 using Jackett.Mobile.Core.Models;
 
 namespace Jackett.Mobile.Pages;
@@ -10,8 +9,9 @@ public class IndexersPage : ContentPage
     private readonly SearchBar _searchBar = new SearchBar { Placeholder = "Filter by name, language or tag" };
     private readonly Picker _filter = new Picker { Title = "Show" };
     private readonly Label _count = new Label { FontSize = 13, TextColor = Colors.Gray, VerticalOptions = LayoutOptions.Center };
-    private readonly ObservableCollection<IndexerItem> _items = new ObservableCollection<IndexerItem>();
-    private bool _filterChosen;
+    private readonly CollectionView _list;
+    private bool _userChoseFilter;
+    private bool _settingFilter;
 
     public IndexersPage()
     {
@@ -21,14 +21,14 @@ public class IndexersPage : ContentPage
             _filter.Items.Add(filter);
         _filter.SelectedIndexChanged += (_, _) =>
         {
-            _filterChosen = true;
+            if (!_settingFilter)
+                _userChoseFilter = true;
             Refresh();
         };
         _searchBar.TextChanged += (_, _) => Refresh();
 
-        var list = new CollectionView
+        var list = _list = new CollectionView
         {
-            ItemsSource = _items,
             SelectionMode = SelectionMode.Single,
             ItemTemplate = new DataTemplate(CreateCell),
             EmptyView = new Label { Text = "No indexers match.", TextColor = Colors.Gray, Margin = 24, HorizontalTextAlignment = TextAlignment.Center }
@@ -65,12 +65,13 @@ public class IndexersPage : ContentPage
     {
         base.OnAppearing();
 
-        // start on "All" until the user has configured something
-        if (!_filterChosen)
+        // show "All" until the user has configured something, unless they picked a filter themselves
+        if (!_userChoseFilter)
         {
             var anyConfigured = AppHost.Current?.Setup.GetIndexers().Any(i => i.IsConfigured) == true;
+            _settingFilter = true;
             _filter.SelectedIndex = anyConfigured ? 0 : 1;
-            _filterChosen = false;
+            _settingFilter = false;
         }
         Refresh();
     }
@@ -96,10 +97,10 @@ public class IndexersPage : ContentPage
         if (text.Length > 0)
             indexers = indexers.Where(i => Matches(i, text));
 
-        _items.Clear();
-        foreach (var indexer in indexers.OrderBy(i => i.Name, StringComparer.OrdinalIgnoreCase))
-            _items.Add(new IndexerItem(indexer));
-        _count.Text = $"{_items.Count}";
+        // one list assignment instead of ~650 collection change notifications per keystroke
+        var items = indexers.OrderBy(i => i.Name, StringComparer.OrdinalIgnoreCase).Select(i => new IndexerItem(i)).ToList();
+        _list.ItemsSource = items;
+        _count.Text = $"{items.Count}";
     }
 
     private static bool Matches(IndexerSummary indexer, string text) =>

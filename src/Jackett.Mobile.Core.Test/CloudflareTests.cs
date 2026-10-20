@@ -169,6 +169,87 @@ namespace Jackett.Mobile.Core.Test
         }
 
         [Test]
+        public async Task HandlerStopsAskingWhenTheSiteRejectsTheBrowserCookies()
+        {
+            var browser = new FakeBrowser { Solve = url => Responses.Clearance(url.Host) };
+            var coordinator = new BrowserChallengeCoordinator(NewStore(), () => browser, () => true);
+            var transport = new FakeTransport(_ => Responses.CloudflareChallenge());
+            var client = new HttpClient(new BrowserChallengeHandler(new CookieContainer(), coordinator, null) { InnerHandler = transport });
+
+            await client.GetAsync("https://tracker.example/");
+            await client.GetAsync("https://tracker.example/");
+            await client.GetAsync("https://tracker.example/");
+
+            Assert.That(browser.SolveCalls, Is.EqualTo(1));
+        }
+
+        [Test]
+        public async Task TimedOutRequestDoesNotCountAsDeclined()
+        {
+            var browser = new FakeBrowser { Solve = _ => null };
+            var coordinator = new BrowserChallengeCoordinator(NewStore(), () => browser, () => true);
+            using var cancelled = new System.Threading.CancellationTokenSource();
+
+            browser.Solve = _ =>
+            {
+                cancelled.Cancel();
+                return null;
+            };
+            await coordinator.GetClearanceAsync(new Uri("https://tracker.example/"), DateTime.UtcNow, cancelled.Token);
+
+            browser.Solve = url => Responses.Clearance(url.Host);
+            var clearance = await coordinator.GetClearanceAsync(new Uri("https://tracker.example/"), DateTime.UtcNow, default);
+
+            Assert.That(clearance, Is.Not.Null);
+            Assert.That(browser.SolveCalls, Is.EqualTo(2));
+        }
+
+        [Test]
+        public void CookieHeaderIncludesSubdomainsAndPrefersTheMostSpecificDomain()
+        {
+            var clearance = new BrowserClearance
+            {
+                Host = "tracker.example",
+                Cookies =
+                {
+                    new BrowserCookie { Name = "uid", Value = "parent", Domain = ".tracker.example" },
+                    new BrowserCookie { Name = "uid", Value = "www", Domain = "www.tracker.example" },
+                    new BrowserCookie { Name = "pass", Value = "p", Domain = "www.tracker.example" },
+                    new BrowserCookie { Name = "ad", Value = "x", Domain = "ads.example" }
+                }
+            };
+
+            Assert.That(clearance.ToCookieHeader("tracker.example", DateTime.UtcNow), Is.EqualTo("uid=www; pass=p"));
+        }
+
+        [Test]
+        public async Task SharedTransportIsCreatedOnceAndNotDisposedWithClients()
+        {
+            var created = 0;
+            FakeTransport shared = null;
+            Func<HttpMessageHandler> getShared = () =>
+            {
+                if (shared == null)
+                {
+                    created++;
+                    shared = new FakeTransport(_ => Responses.Ok());
+                }
+                return shared;
+            };
+
+            var first = new HttpClient(new SharedHandlerAdapter(getShared));
+            var second = new HttpClient(new SharedHandlerAdapter(getShared));
+            Assert.That(created, Is.EqualTo(0), "created lazily");
+
+            await first.GetAsync("https://a.example/");
+            first.Dispose();
+            await second.GetAsync("https://b.example/");
+
+            Assert.That(created, Is.EqualTo(1));
+            Assert.That(shared.Requests.Count, Is.EqualTo(2));
+        }
+
+        [Test]
         public void SplitsMergedSetCookieHeaders()
         {
             const string merged = "a=1; expires=Wed, 21 Oct 2026 07:28:00 GMT; path=/, b=2; HttpOnly,c=3";

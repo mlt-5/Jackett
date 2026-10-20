@@ -9,7 +9,7 @@ public class IndexerConfigPage : ContentPage
     private readonly VerticalStackLayout _form = new VerticalStackLayout { Spacing = 14 };
     private readonly ActivityIndicator _busy = new ActivityIndicator();
     private readonly Label _error = new Label { TextColor = Colors.OrangeRed, IsVisible = false };
-    private readonly Button _save = new Button { Text = "Save and test" };
+    private readonly Button _save = new Button { Text = "Save" };
     private readonly Button _test = new Button { Text = "Test" };
     private readonly Button _delete = new Button { Text = "Remove indexer", TextColor = Colors.Red, BackgroundColor = Colors.Transparent };
     private List<ConfigField> _fields;
@@ -189,7 +189,7 @@ public class IndexerConfigPage : ContentPage
             return;
 
         BuildForm();
-        await DisplayAlertAsync("Logged in", "The cookies were copied from the browser. Tap \"Save and test\" to finish.", "OK");
+        await DisplayAlertAsync("Logged in", "The cookies were copied from the browser. Tap \"Save\" to finish.", "OK");
     }
 
     private async Task SaveAsync()
@@ -208,7 +208,8 @@ public class IndexerConfigPage : ContentPage
 
         if (saved)
         {
-            await DisplayAlertAsync("Indexer added", "The test search worked.", "OK");
+            // like the web UI, only indexers that log in run a test search when saved
+            await DisplayAlertAsync("Indexer saved", "Use Test to check that it returns results.", "OK");
             await Navigation.PopAsync();
         }
     }

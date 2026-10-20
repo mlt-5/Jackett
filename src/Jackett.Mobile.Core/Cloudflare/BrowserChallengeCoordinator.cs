@@ -25,6 +25,9 @@ namespace Jackett.Mobile.Core.Cloudflare
 
         public void ForgetDeclinedHosts() => _declinedHosts.Clear();
 
+        // The site rejected the cookies obtained in the browser: do not ask again during this session.
+        public void MarkRejected(string host) => _declinedHosts[host.ToLowerInvariant()] = true;
+
         // Returns cookies that pass the challenge for the url, showing the browser if needed.
         // Returns null when solving is disabled, unavailable or was cancelled by the user.
         public async Task<BrowserClearance> GetClearanceAsync(Uri url, DateTime requestStartedUtc, CancellationToken cancellationToken)
@@ -48,7 +51,9 @@ namespace Jackett.Mobile.Core.Cloudflare
                 var clearance = await solver.SolveChallengeAsync(url, cancellationToken);
                 if (clearance == null || clearance.Cookies.Count == 0)
                 {
-                    _declinedHosts[host] = true;
+                    // a request that timed out is not the user saying no
+                    if (!cancellationToken.IsCancellationRequested)
+                        _declinedHosts[host] = true;
                     return null;
                 }
 

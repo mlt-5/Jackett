@@ -75,6 +75,38 @@ namespace Jackett.Mobile.Core.Test
         }
 
         [Test]
+        public async Task RealIndexerGoesThroughBrowserSolvingAndNativeTransport()
+        {
+            using var temp = new TempFolder();
+            var browser = new FakeBrowser { Solve = url => Responses.Clearance(url.Host) };
+            var transport = new FakeTransport(request =>
+                request.Headers.TryGetValues("Cookie", out var cookies) && cookies.Any(c => c.Contains("cf_clearance=solved"))
+                    ? Responses.Ok("<html><body>no torrents</body></html>")
+                    : Responses.CloudflareChallenge());
+
+            using var host = MobileHost.Start(new MobileHostOptions
+            {
+                DataFolder = temp.Path,
+                BundledDefinitionsFolder = DefinitionsFolder,
+                BrowserSolver = browser,
+                NativeTransportFactory = () => transport
+            });
+
+            // saving a public indexer does not search; the test search goes through the whole stack
+            var form = await host.Setup.GetFormAsync("1337x");
+            await host.Setup.SaveAsync("1337x", form);
+            Assert.That(transport.Requests, Is.Empty);
+
+            var error = Assert.ThrowsAsync<InvalidOperationException>(() => host.Setup.TestAsync("1337x"));
+
+            Assert.That(error.Message, Does.Contain("no results").IgnoreCase, "the fake page has no torrents");
+            Assert.That(browser.SolveCalls, Is.EqualTo(1));
+            var retried = transport.Requests.Last();
+            Assert.That(retried.Headers.UserAgent.ToString(), Is.EqualTo("Mozilla/5.0 (iPhone) Safari"));
+            Assert.That(host.Challenges.Store.Find(retried.RequestUri.Host), Is.Not.Null);
+        }
+
+        [Test]
         public void ProtectionRoundTripsAndDetectsTampering()
         {
             var service = new MobileProtectionService(MobileProtectionService.GenerateKey());
